@@ -56,6 +56,15 @@ class Repositories extends \Object\Form\Wrapper\Base {
 			'details_pk' => ['dn_repousr_user_id'],
 			'order' => 35002
 		],
+		'languages_container' => [
+			'type' => 'details',
+			'details_rendering_type' => 'table',
+			'details_new_rows' => 1,
+			'details_key' => '\Numbers\Projects\Documentation\Model\Repository\Languages',
+			'details_pk' => ['dn_repolang_language_code'],
+			'required' => true,
+			'order' => 35002
+		],
 	];
 	public $rows = [
 		'top' => [
@@ -65,6 +74,7 @@ class Repositories extends \Object\Form\Wrapper\Base {
 		'tabs' => [
 			'general' => ['order' => 100, 'label_name' => 'General'],
 			'acl' => ['order' => 200, 'label_name' => 'Permissions'],
+			'languages' => ['order' => 300, 'label_name' => 'Languages'],
 		]
 	];
 	public $elements = [
@@ -90,6 +100,9 @@ class Repositories extends \Object\Form\Wrapper\Base {
 				'separator2' => ['container' => 'users_separator_container', 'order' => 450],
 				'users' => ['container' => 'users_container', 'order' => 500],
 			],
+			'languages' => [
+				'languages' => ['container' => 'languages_container', 'order' => 100],
+			]
 		],
 		'general_container' => [
 			'um_user_type_id' => [
@@ -142,6 +155,13 @@ class Repositories extends \Object\Form\Wrapper\Base {
 				'dn_repousr_inactive' => ['order' => 2, 'label_name' => 'Inactive', 'type' => 'boolean', 'percent' => 5]
 			]
 		],
+		'languages_container' => [
+			'row1' => [
+				'dn_repolang_language_code' => ['order' => 1, 'row_order' => 100, 'label_name' => 'Language', 'domain' => 'language_code', 'required' => true, 'null' => true, 'details_unique_select' => true, 'percent' => 90, 'method' => 'select', 'options_model' => '\Numbers\Internalization\Internalization\Model\Language\Codes', 'onchange' => 'this.form.submit();'],
+				'dn_repolang_primary' => ['order' => 2, 'label_name' => 'Primary', 'type' => 'boolean', 'percent' => 5],
+				'dn_repolang_inactive' => ['order' => 2, 'label_name' => 'Inactive', 'type' => 'boolean', 'percent' => 5]
+			]
+		],
 		'buttons' => [
 			self::BUTTONS => self::BUTTONS_DATA_GROUP
 		]
@@ -174,6 +194,12 @@ class Repositories extends \Object\Form\Wrapper\Base {
 				'type' => '1M',
 				'map' => ['dn_repository_tenant_id' => 'dn_repousr_tenant_id', 'dn_repository_id' => 'dn_repousr_repository_id']
 			],
+			'\Numbers\Projects\Documentation\Model\Repository\Languages' => [
+				'name' => 'Languages',
+				'pk' => ['dn_repolang_tenant_id', 'dn_repolang_repository_id', 'dn_repolang_language_code'],
+				'type' => '1M',
+				'map' => ['dn_repository_tenant_id' => 'dn_repolang_tenant_id', 'dn_repository_id' => 'dn_repolang_repository_id']
+			]
 		]
 	];
 
@@ -182,7 +208,26 @@ class Repositories extends \Object\Form\Wrapper\Base {
 	}
 
 	public function validate(& $form) {
-
+		// primary language
+		$primary_found = 0;
+		$primary_first_line = null;
+		foreach ($form->values['\Numbers\Projects\Documentation\Model\Repository\Languages'] as $k => $v) {
+			if (!isset($primary_first_line)) {
+				$primary_first_line = "\Numbers\Projects\Documentation\Model\Repository\Languages[{$k}][dn_repolang_primary]";
+			}
+			if (!empty($v['dn_repolang_primary'])) {
+				$primary_found++;
+				if (!empty($v['dn_repolang_inactive'])) {
+					$form->error(DANGER, 'Primary cannot be inactive!', "\Numbers\Projects\Documentation\Model\Repository\Languages[{$k}][dn_repolang_inactive]");
+				}
+				if ($primary_found > 1) {
+					$form->error(DANGER, 'There can be only one primary language!', "\Numbers\Projects\Documentation\Model\Repository\Languages[{$k}][dn_repolang_primary]");
+				}
+			}
+		}
+		if ($primary_found == 0) {
+			$form->error(DANGER, 'You must select primary language!', $primary_first_line);
+		}
 	}
 
 	public function processOptionsModels(& $form, $field_name, $details_key, $details_parent_key, & $where) {
